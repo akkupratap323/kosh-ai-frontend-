@@ -334,6 +334,9 @@ export default function Home() {
       if (response.data.success) {
         setMessage('upload', `✅ NEW DATA UPLOADED! ${response.data.data.processedRows} transactions processed. Previous data cleared.`)
         
+        // Record upload timestamp for timing validation
+        localStorage.setItem('lastUploadTime', Date.now().toString())
+        
         // Clear frontend state for fresh start
         setReconciliationResults([])
         setShowDetailedResults(false)
@@ -341,8 +344,23 @@ export default function Home() {
         setCurrentSessionId(null)
         
         loadStats()
-        // Use progressive delay to allow backend to update counts properly
-        setTimeout(() => checkUploadStatus(0), 3000) // Longer delay for file processing
+        
+        // For large uploads, wait longer for BigQuery streaming buffer to process
+        const uploadSize = response.data.data.processedRows || 0;
+        let delay = 3000; // Default 3 seconds
+        
+        if (uploadSize > 500) {
+          delay = 15000; // 15 seconds for 500+ records
+          setMessage('upload', `📊 Large upload detected (${uploadSize} records). Waiting 15 seconds for cloud processing...`, 'info');
+        } else if (uploadSize > 100) {
+          delay = 8000; // 8 seconds for 100+ records
+          setMessage('upload', `📊 Medium upload detected (${uploadSize} records). Waiting 8 seconds for cloud processing...`, 'info');
+        }
+        
+        setTimeout(() => {
+          checkUploadStatus(0);
+          setMessage('upload', `✅ Upload completed! ${uploadSize} transactions processed and ready for reconciliation.`, 'success');
+        }, delay)
       } else {
         setMessage('upload', `❌ Upload failed: ${response.data.message}`, 'error')
       }
@@ -355,7 +373,7 @@ export default function Home() {
   const handleReconcile = async () => {
     const limit = (document.getElementById('reconcileLimit') as HTMLInputElement)?.value
 
-    // VALIDATION: Check if user has uploaded required data
+    // ENHANCED VALIDATION: Check if user has uploaded required data and it's properly saved
     if (uploadBatchOnly && uploadStatus) {
       if (!uploadStatus.hasInvoices || !uploadStatus.hasBankStatements) {
         const missingData = []
@@ -363,6 +381,33 @@ export default function Home() {
         if (!uploadStatus.hasBankStatements) missingData.push('bank statements')
         
         setMessage('reconcile', `❌ Cannot perform AI reconciliation. Missing required data: ${missingData.join(' and ')}.`, 'error')
+        return
+      }
+      
+      // Additional validation: Check if we have a reasonable amount of data
+      if (uploadStatus.bankCount < 10) {
+        setMessage('reconcile', `⚠️ Warning: Only ${uploadStatus.bankCount} bank statements found. If you just uploaded data, please wait longer for cloud processing.`, 'error')
+        return
+      }
+    }
+    
+    // FRESH UPLOAD VALIDATION: If recent upload, ensure data is ready
+    const currentTime = Date.now()
+    const lastUploadKey = 'lastUploadTime'
+    const lastUpload = localStorage.getItem(lastUploadKey)
+    
+    if (lastUpload) {
+      const timeSinceUpload = currentTime - parseInt(lastUpload)
+      const waitTime = 20000 // 20 seconds minimum wait after upload
+      
+      if (timeSinceUpload < waitTime) {
+        const remainingWait = Math.ceil((waitTime - timeSinceUpload) / 1000)
+        setMessage('reconcile', `⏳ Please wait ${remainingWait} more seconds after upload for cloud data processing to complete.`, 'error')
+        
+        // Auto-retry after wait time
+        setTimeout(() => {
+          setMessage('reconcile', '🔄 Data should be ready now. You can try reconciliation again.', 'info')
+        }, waitTime - timeSinceUpload)
         return
       }
     }
@@ -1414,11 +1459,15 @@ Ask me anything about the system - I have detailed knowledge of all components a
                 <input
                   type="number"
                   id="reconcileLimit"
-                  defaultValue="100"
+                  defaultValue="5000"
                   min="1"
-                  max="5000"
+                  max="50000"
+                  placeholder="Max records to process"
                   className="w-full px-3 py-2 border rounded-lg"
                 />
+                <small className="text-gray-500 text-xs">
+                  ⚠️ Set high (5000+) to process all uploaded data. Low values will limit results.
+                </small>
               </div>
               
               <div>
