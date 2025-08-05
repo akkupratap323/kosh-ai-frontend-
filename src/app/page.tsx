@@ -120,15 +120,22 @@ export default function Home() {
     }
   }
 
-  const checkUploadStatus = async () => {
+  const checkUploadStatus = async (retryCount = 0) => {
     try {
-      const response = await axios.get(`${API_BASE}/upload-status`)
+      const response = await axios.get(`${API_BASE}/upload-status?timestamp=${Date.now()}`) // Add cache buster
       if (response.data.success) {
         setUploadStatus(response.data.data)
+        console.log('Upload status updated:', response.data.data)
       }
     } catch (error) {
       console.log('Upload status check failed')
-      setUploadStatus({ hasInvoices: false, hasBankStatements: false, invoiceCount: 0, bankCount: 0 })
+      // Retry up to 3 times with increasing delays
+      if (retryCount < 3) {
+        console.log(`Retrying upload status check in ${(retryCount + 1) * 2} seconds...`)
+        setTimeout(() => checkUploadStatus(retryCount + 1), (retryCount + 1) * 2000)
+      } else {
+        setUploadStatus({ hasInvoices: false, hasBankStatements: false, invoiceCount: 0, bankCount: 0 })
+      }
     }
   }
 
@@ -238,7 +245,8 @@ export default function Home() {
         setCurrentSessionId(null)
         
         loadStats()
-        setTimeout(checkUploadStatus, 1000)
+        // Use progressive delay to allow backend to update counts
+        setTimeout(() => checkUploadStatus(0), 2000) // Start with 2 second delay
       } else {
         setMessage('fetch', `❌ Failed to fetch invoices: ${response.data.message}`, 'error')
       }
@@ -282,7 +290,8 @@ export default function Home() {
         setCurrentSessionId(null)
         
         loadStats()
-        setTimeout(checkUploadStatus, 1000)
+        // Use progressive delay to allow backend to update counts properly
+        setTimeout(() => checkUploadStatus(0), 3000) // Longer delay for file processing
       } else {
         setMessage('upload', `❌ Upload failed: ${response.data.message}`, 'error')
       }
@@ -1430,8 +1439,11 @@ Ask me anything about the system - I have detailed knowledge of all components a
                 
                 <Button
                   onClick={async () => {
-                    setMessage('reconcile', '🔄 Refreshing reconciliation results...', 'info')
+                    setMessage('reconcile', '🔄 Refreshing data and results...', 'info')
+                    // Force refresh upload status first
+                    await checkUploadStatus(0)
                     await loadReconciliationResults()
+                    await loadStats()
                     if (reconciliationResults.length > 0) {
                       setMessage('reconcile', `✅ Refreshed! Found ${reconciliationResults.length} results.`, 'success')
                       setShowDetailedResults(true)
