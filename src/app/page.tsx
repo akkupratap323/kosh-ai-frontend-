@@ -70,6 +70,7 @@ export default function Home() {
   const [reconciliationStage, setReconciliationStage] = useState('')
   const [showReconciliationLoader, setShowReconciliationLoader] = useState(false)
   const [displayLimit, setDisplayLimit] = useState(10) // Number of results to display
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
 
   // Always use direct backend URL to avoid Next.js rewrite issues
   const API_BASE = 'https://kosh-ai-467615.el.r.appspot.com/api'
@@ -131,9 +132,24 @@ export default function Home() {
     }
   }
 
+  const clearPreviousResults = async () => {
+    try {
+      console.log('Clearing previous reconciliation results...')
+      const response = await axios.delete(`${API_BASE}/reconciliation-results`)
+      if (response.data.success) {
+        console.log('Previous results cleared successfully')
+        setReconciliationResults([])
+        setStats(null)
+      }
+    } catch (error) {
+      console.log('Failed to clear previous results (might not be supported):', error)
+      // Continue anyway - this is not critical
+    }
+  }
+
   const loadReconciliationResults = async () => {
     try {
-      const response = await axios.get(`${API_BASE}/reconciliation-results?limit=50`)
+      const response = await axios.get(`${API_BASE}/reconciliation-results?limit=1000`)
       console.log('Reconciliation results response:', response.data)
       if (response.data.success && response.data.data) {
         // Transform backend data to match frontend interface
@@ -264,10 +280,15 @@ export default function Home() {
     setReconciliationProgress(0)
     setReconciliationStage('Initializing AI reconciliation...')
     
-    // Clear any previous results
+    // Clear any previous results from frontend and backend
     setReconciliationResults([])
     setShowDetailedResults(false)
     setDisplayLimit(10) // Reset display limit for new reconciliation
+    
+    // Clear previous results from backend if processing uploaded data only
+    if (uploadBatchOnly) {
+      await clearPreviousResults()
+    }
 
     // Simulate progress stages
     const progressStages = [
@@ -293,11 +314,16 @@ export default function Home() {
     }, 800)
 
     try {
+      const sessionId = Date.now().toString()
+      setCurrentSessionId(sessionId)
+      
       const response = await axios.post(`${API_BASE}/reconcile`, {
         limit: parseInt(limit || '1000'),
         daysBack: recordsTimeframe,
         latestOnly: latestOnlyMode,
-        uploadBatchOnly: uploadBatchOnly
+        uploadBatchOnly: uploadBatchOnly,
+        clearPrevious: uploadBatchOnly, // Clear previous results when processing uploaded data only
+        sessionId: sessionId // Unique session ID for this reconciliation
       })
 
       clearInterval(progressInterval)
@@ -1314,22 +1340,38 @@ Ask me anything about the system - I have detailed knowledge of all components a
               </Card>
             )}
             
-            <Button
-              onClick={handleReconcile}
-              disabled={loading.reconcile || (uploadBatchOnly && uploadStatus !== null && (!uploadStatus.hasInvoices || !uploadStatus.hasBankStatements))}
-              className="w-full text-lg py-6"
-              variant={uploadBatchOnly && uploadStatus !== null && (!uploadStatus.hasInvoices || !uploadStatus.hasBankStatements) ? "destructive" : "default"}
-            >
-              {loading.reconcile ? (
-                <LoadingSpinner />
-              ) : uploadBatchOnly && uploadStatus !== null && (!uploadStatus.hasInvoices || !uploadStatus.hasBankStatements) ? (
-                `❌ Missing ${[!uploadStatus.hasInvoices && 'invoices', !uploadStatus.hasBankStatements && 'bank statements'].filter(Boolean).join(' and ')} - Upload Required`
-              ) : uploadStatus !== null && uploadBatchOnly ? (
-                `🚀 Start AI Reconciliation (${uploadStatus.invoiceCount} invoices, ${uploadStatus.bankCount} statements)`
-              ) : (
-                '🤖 Start AI Reconciliation'
+            <div className="space-y-3">
+              <Button
+                onClick={handleReconcile}
+                disabled={loading.reconcile || (uploadBatchOnly && uploadStatus !== null && (!uploadStatus.hasInvoices || !uploadStatus.hasBankStatements))}
+                className="w-full text-lg py-6"
+                variant={uploadBatchOnly && uploadStatus !== null && (!uploadStatus.hasInvoices || !uploadStatus.hasBankStatements) ? "destructive" : "default"}
+              >
+                {loading.reconcile ? (
+                  <LoadingSpinner />
+                ) : uploadBatchOnly && uploadStatus !== null && (!uploadStatus.hasInvoices || !uploadStatus.hasBankStatements) ? (
+                  `❌ Missing ${[!uploadStatus.hasInvoices && 'invoices', !uploadStatus.hasBankStatements && 'bank statements'].filter(Boolean).join(' and ')} - Upload Required`
+                ) : uploadStatus !== null && uploadBatchOnly ? (
+                  `🚀 Start AI Reconciliation (${uploadStatus.invoiceCount} invoices, ${uploadStatus.bankCount} statements)`
+                ) : (
+                  '🤖 Start AI Reconciliation'
+                )}
+              </Button>
+              
+              {reconciliationResults.length > 0 && (
+                <Button
+                  onClick={async () => {
+                    await clearPreviousResults()
+                    setMessage('reconcile', '🗑️ Previous reconciliation results cleared successfully!', 'info')
+                  }}
+                  variant="outline"
+                  className="w-full"
+                  disabled={loading.reconcile}
+                >
+                  🗑️ Clear Previous Results
+                </Button>
               )}
-            </Button>
+            </div>
             <StatusMessage messageKey="reconcile" />
           </CardContent>
         </Card>
