@@ -25,6 +25,7 @@ interface Stats {
   total_reconciliations: number
   matched: number
   pending: number
+  rejected?: number
   avg_confidence: number
 }
 
@@ -94,7 +95,24 @@ export default function Home() {
     try {
       const response = await axios.get(`${API_BASE}/stats`)
       if (response.data.success) {
-        setStats(response.data.data)
+        // Also get reconciliation results to calculate accurate stats since backend status mapping differs
+        const resultsResponse = await axios.get(`${API_BASE}/reconciliation-results?limit=1000`)
+        if (resultsResponse.data.success && resultsResponse.data.data) {
+          const results = resultsResponse.data.data
+          const matched = results.filter((r: any) => r.status === 'auto_matched').length
+          const pending = results.filter((r: any) => r.status === 'pending' || r.status === 'review_required').length
+          const rejected = results.filter((r: any) => r.status === 'rejected').length
+          
+          setStats({
+            total_reconciliations: response.data.data.total_reconciliations || results.length,
+            matched: matched,
+            pending: pending,
+            rejected: rejected,
+            avg_confidence: response.data.data.avg_confidence || 0
+          })
+        } else {
+          setStats(response.data.data)
+        }
       }
     } catch (error) {
       console.log('Stats not available')
@@ -116,11 +134,41 @@ export default function Home() {
   const loadReconciliationResults = async () => {
     try {
       const response = await axios.get(`${API_BASE}/reconciliation-results?limit=50`)
+      console.log('Reconciliation results response:', response.data)
       if (response.data.success && response.data.data) {
-        setReconciliationResults(response.data.data)
+        // Transform backend data to match frontend interface
+        const transformedResults = response.data.data.map((item: any) => ({
+          id: item.id,
+          invoice_id: item.invoice_id,
+          invoice_number: item.invoice_number,
+          partner_name: item.partner_name,
+          invoice_amount: item.invoice_amount,
+          invoice_date: item.invoice_date?.value || item.invoice_date,
+          bank_statement_id: item.bank_statement_id,
+          bank_description: item.bank_description,
+          bank_amount: Math.abs(item.bank_amount), // Convert negative amounts to positive for display
+          bank_date: item.bank_date?.value || item.bank_date,
+          match_confidence: item.match_confidence,
+          match_type: item.match_type,
+          match_reasons: item.match_reasons || [],
+          status: item.status === 'auto_matched' ? 'matched' : item.status,
+          created_at: item.created_at?.value || item.created_at,
+          amount_difference: Math.abs(item.amount_difference || 0),
+          date_difference_days: item.date_difference_days || 0,
+          llm_analysis: typeof item.llm_analysis === 'string' 
+            ? `${item.match_type_display || 'AI Analysis'}: Confidence ${(item.match_confidence * 100).toFixed(1)}%` 
+            : item.llm_analysis
+        }))
+        
+        setReconciliationResults(transformedResults)
+        console.log('Loaded and transformed reconciliation results:', transformedResults.length)
+      } else {
+        console.log('No reconciliation results found in API response')
+        setReconciliationResults([])
       }
     } catch (error) {
-      console.log('Failed to load reconciliation results')
+      console.log('Failed to load reconciliation results:', error)
+      setReconciliationResults([])
     }
   }
 
@@ -215,6 +263,10 @@ export default function Home() {
     setShowReconciliationLoader(true)
     setReconciliationProgress(0)
     setReconciliationStage('Initializing AI reconciliation...')
+    
+    // Clear any previous results
+    setReconciliationResults([])
+    setShowDetailedResults(false)
 
     // Simulate progress stages
     const progressStages = [
@@ -259,25 +311,16 @@ export default function Home() {
         // Auto-load detailed results after reconciliation
         setTimeout(async () => {
           await loadReconciliationResults()
-          // If no results from API, show demo data for better UX
+          // Only show results if we actually have data from the API
           if (reconciliationResults.length === 0) {
-            const demoResults = generateDemoResults()
-            setReconciliationResults(demoResults)
-            // Update stats based on demo data
-            const matched = demoResults.filter(r => r.status === 'matched').length
-            const pending = demoResults.filter(r => r.status === 'pending').length
-            const avgConfidence = demoResults.reduce((sum, r) => sum + r.match_confidence, 0) / demoResults.length
-            setStats({
-              total_reconciliations: demoResults.length,
-              matched: matched,
-              pending: pending,
-              avg_confidence: avgConfidence
-            })
+            setMessage('reconcile', '⚠️ No reconciliation results found. This could mean:\n• No matching transactions were found\n• Data needs to be uploaded first\n• Backend reconciliation is still processing', 'error')
+            setShowDetailedResults(false)
+          } else {
+            setShowDetailedResults(true)
           }
           
-          // Hide loader and show results
+          // Hide loader
           setShowReconciliationLoader(false)
-          setShowDetailedResults(true)
           
           // Smooth scroll to results section with proper timing
           setTimeout(() => {
@@ -305,110 +348,6 @@ export default function Home() {
     setMessage('export', `✅ ${format.toUpperCase()} export started! Check your downloads.`)
   }
 
-  const generateDemoResults = (): ReconciliationResult[] => {
-    return [
-      {
-        id: '1',
-        invoice_id: 'INV-2024-001',
-        invoice_number: 'INV-2024-001',
-        partner_name: 'Acme Corporation',
-        invoice_amount: 15750.00,
-        invoice_date: '2024-01-15',
-        bank_statement_id: 'BS-001',
-        bank_description: 'Payment from ACME CORP - Invoice INV-2024-001',
-        bank_amount: 15750.00,
-        bank_date: '2024-01-16',
-        match_confidence: 0.98,
-        match_type: 'EXACT_MATCH',
-        match_reasons: ['Exact amount match', 'Invoice number found', 'Date within 1 day'],
-        status: 'matched',
-        created_at: '2024-01-16T10:30:00',
-        amount_difference: 0,
-        date_difference_days: 1,
-        llm_analysis: 'Perfect match found with 98% confidence. Invoice number explicitly mentioned in bank description, amounts match exactly, and payment received within 1 day of invoice date.'
-      },
-      {
-        id: '2',
-        invoice_id: 'INV-2024-002',
-        invoice_number: 'INV-2024-002',
-        partner_name: 'TechSolutions Ltd',
-        invoice_amount: 8250.50,
-        invoice_date: '2024-01-20',
-        bank_statement_id: 'BS-002',
-        bank_description: 'TECHSOLUTIONS PAYMENT REF 002',
-        bank_amount: 8250.50,
-        bank_date: '2024-01-22',
-        match_confidence: 0.89,
-        match_type: 'AI_MATCH',
-        match_reasons: ['Amount match', 'Partner name similarity', 'Reference number'],
-        status: 'matched',
-        created_at: '2024-01-22T14:15:00',
-        amount_difference: 0,
-        date_difference_days: 2,
-        llm_analysis: 'Strong AI match with 89% confidence. Partner name abbreviated in bank statement, exact amount match, and reference number correlation detected.'
-      },
-      {
-        id: '3',
-        invoice_id: 'INV-2024-003',
-        invoice_number: 'INV-2024-003',
-        partner_name: 'Global Services Inc',
-        invoice_amount: 12000.00,
-        invoice_date: '2024-01-25',
-        bank_statement_id: 'BS-003',
-        bank_description: 'WIRE TRANSFER GLOBAL SVC 11980.00',
-        bank_amount: 11980.00,
-        bank_date: '2024-01-26',
-        match_confidence: 0.75,
-        match_type: 'PARTIAL_MATCH',
-        match_reasons: ['Partner name match', 'Amount close', 'Date proximity'],
-        status: 'pending',
-        created_at: '2024-01-26T09:45:00',
-        amount_difference: 20.00,
-        date_difference_days: 1,
-        llm_analysis: 'Partial match requiring review. Amount difference of $20 detected, possibly due to bank charges. Partner name matches, payment timing is appropriate.'
-      },
-      {
-        id: '4',
-        invoice_id: 'INV-2024-004',
-        invoice_number: 'INV-2024-004',
-        partner_name: 'Digital Marketing Pro',
-        invoice_amount: 5500.00,
-        invoice_date: '2024-01-28',
-        bank_statement_id: 'BS-004',
-        bank_description: 'DIG MARKETING SERVICES PAYMENT',
-        bank_amount: 5500.00,
-        bank_date: '2024-01-30',
-        match_confidence: 0.92,
-        match_type: 'AI_MATCH',
-        match_reasons: ['Exact amount', 'Service description match', 'Name abbreviation'],
-        status: 'matched',
-        created_at: '2024-01-30T11:20:00',
-        amount_difference: 0,
-        date_difference_days: 2,
-        llm_analysis: 'Excellent AI match with 92% confidence. Service description in bank statement aligns with partner business, exact amount match, reasonable payment timing.'
-      },
-      {
-        id: '5',
-        invoice_id: 'INV-2024-005',
-        invoice_number: 'INV-2024-005',
-        partner_name: 'Construction Masters LLC',
-        invoice_amount: 25000.00,
-        invoice_date: '2024-02-01',
-        bank_statement_id: 'BS-005',
-        bank_description: 'CONSTRUCTION MASTERS LLC INV005',
-        bank_amount: 25000.00,
-        bank_date: '2024-02-02',
-        match_confidence: 0.96,
-        match_type: 'EXACT_MATCH',
-        match_reasons: ['Perfect name match', 'Invoice reference', 'Exact amount'],
-        status: 'matched',
-        created_at: '2024-02-02T16:30:00',
-        amount_difference: 0,
-        date_difference_days: 1,
-        llm_analysis: 'Outstanding match with 96% confidence. Complete partner name match, invoice reference included, exact amount, and prompt payment within 1 day.'
-      }
-    ]
-  }
 
   const handleChatSend = async () => {
     if (!currentMessage.trim()) return
