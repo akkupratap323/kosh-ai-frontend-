@@ -141,18 +141,41 @@ export default function Home() {
 
   const clearPreviousResults = async () => {
     try {
-      console.log('Clearing previous reconciliation results...')
-      // Add cache busting to ensure fresh delete request
-      const response = await axios.delete(`${API_BASE}/reconciliation-results?timestamp=${Date.now()}`)
-      if (response.data.success) {
-        console.log('Previous results cleared successfully')
+      console.log('🗑️ FORCE CLEARING all previous reconciliation results...')
+      
+      // Multiple clearing attempts to ensure data is actually deleted
+      const clearAttempts = [
+        // Method 1: Standard delete
+        axios.delete(`${API_BASE}/reconciliation-results?timestamp=${Date.now()}&force=true`),
+        // Method 2: Clear by session if available  
+        ...(currentSessionId ? [axios.delete(`${API_BASE}/reconciliation-results/${currentSessionId}?timestamp=${Date.now()}`)] : []),
+        // Method 3: Truncate/reset endpoint
+        axios.post(`${API_BASE}/reconciliation-results/clear`, { timestamp: Date.now(), force: true })
+      ]
+      
+      const results = await Promise.allSettled(clearAttempts)
+      
+      let successCount = 0
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value.data?.success) {
+          successCount++
+          console.log(`✅ Clear method ${index + 1} succeeded`)
+        } else {
+          console.log(`❌ Clear method ${index + 1} failed:`, result.status === 'rejected' ? result.reason.message : 'API returned failure')
+        }
+      })
+      
+      if (successCount > 0) {
+        console.log(`✅ ${successCount} clear methods succeeded`)
         setReconciliationResults([])
         setStats(null)
-        setShowDetailedResults(false) // Hide results display
+        setShowDetailedResults(false)
+      } else {
+        console.warn('⚠️ All clear methods failed - old data may persist')
       }
+      
     } catch (error) {
-      console.log('Failed to clear previous results (might not be supported):', error)
-      // Continue anyway - this is not critical
+      console.error('❌ Critical error during result clearing:', error)
     }
   }
 
@@ -274,8 +297,13 @@ export default function Home() {
     }
 
     // Clear all previous data when uploading new files
-    setMessage('upload', '🗑️ Clearing previous data...', 'info')
+    setMessage('upload', '🗑️ Clearing previous reconciliation data (this is critical for accurate results)...', 'info')
     await clearPreviousResults()
+    
+    // Extra warning if we had many results before
+    if (reconciliationResults.length > 100) {
+      console.warn(`⚠️ WARNING: Had ${reconciliationResults.length} old results - if these aren't cleared, new upload will mix with old data`)
+    }
     
     const formData = new FormData()
     formData.append('file', fileInput.files[0])
@@ -407,14 +435,24 @@ export default function Home() {
             }
           }
           
-          // Check final results
+          // Check final results with validation
           if (results.length === 0) {
             console.error('No reconciliation results found after all attempts')
             setMessage('reconcile', '⚠️ No reconciliation results loaded. This could mean:\n• Backend processing delay - try "🔄 Refresh Results" button\n• Data mismatch between uploaded files\n• Database synchronization issue', 'error')
             setShowDetailedResults(false)
           } else {
             console.log(`Successfully loaded ${results.length} reconciliation results`)
-            setMessage('reconcile', `✅ Loaded ${results.length} reconciliation results successfully!`, 'success')
+            
+            // VALIDATION: Check if result count matches expected data
+            const expectedMax = uploadStatus ? Math.min(uploadStatus.invoiceCount, uploadStatus.bankCount) : results.length
+            const isReasonableCount = results.length <= expectedMax * 2 // Allow some tolerance
+            
+            if (!isReasonableCount && expectedMax > 0) {
+              console.warn(`⚠️ SUSPICIOUS: Loaded ${results.length} results but only ${expectedMax} transactions expected`)
+              setMessage('reconcile', `⚠️ POSSIBLE DATA ISSUE: Loaded ${results.length} results but only uploaded ${uploadStatus?.bankCount || 'unknown'} transactions. This suggests old data wasn't cleared properly. Try "Clear Results" and run again.`, 'error')
+            } else {
+              setMessage('reconcile', `✅ Loaded ${results.length} reconciliation results successfully!`, 'success')
+            }
             setShowDetailedResults(true)
           }
           
@@ -1436,14 +1474,30 @@ Ask me anything about the system - I have detailed knowledge of all components a
                 {reconciliationResults.length > 0 && (
                   <Button
                     onClick={async () => {
+                      const beforeCount = reconciliationResults.length
+                      setMessage('reconcile', `🗑️ Clearing ${beforeCount} results with multiple methods...`, 'info')
+                      
                       await clearPreviousResults()
-                      setMessage('reconcile', '🗑️ Previous reconciliation results cleared successfully!', 'info')
+                      
+                      // Force refresh to check if actually cleared
+                      setTimeout(async () => {
+                        const afterResults = await loadReconciliationResults()
+                        const afterCount = afterResults.length
+                        
+                        if (afterCount === 0) {
+                          setMessage('reconcile', `✅ Successfully cleared all ${beforeCount} results!`, 'success')
+                        } else if (afterCount < beforeCount) {
+                          setMessage('reconcile', `⚠️ Partially cleared: ${beforeCount - afterCount} removed, ${afterCount} remain. Backend may need manual reset.`, 'error')
+                        } else {
+                          setMessage('reconcile', `❌ Clear failed: ${afterCount} results still present. Backend clearing not working properly.`, 'error')
+                        }
+                      }, 1000)
                     }}
                     variant="outline"
                     className="flex-1"
                     disabled={loading.reconcile}
                   >
-                    🗑️ Clear Results
+                    🗑️ Force Clear All ({reconciliationResults.length})
                   </Button>
                 )}
                 
