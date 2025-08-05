@@ -210,16 +210,30 @@ export default function Home() {
     const dateTo = (document.getElementById('dateTo') as HTMLInputElement)?.value
     const limit = (document.getElementById('invoiceLimit') as HTMLInputElement)?.value
 
+    // Clear previous data when fetching new invoices
+    setMessage('fetch', '🗑️ Clearing previous data...', 'info')
+    await clearPreviousResults()
+
     setLoadingState('fetch', true)
     try {
       const response = await axios.post(`${API_BASE}/fetch-invoices`, {
         dateFrom,
         dateTo,
-        limit: parseInt(limit || '1000')
+        limit: parseInt(limit || '1000'),
+        clearPrevious: true,
+        sessionId: Date.now().toString(),
+        replaceData: true
       })
 
       if (response.data.success) {
-        setMessage('fetch', `✅ Successfully fetched ${response.data.data.fetchedCount} invoices and saved to cloud storage!`)
+        setMessage('fetch', `✅ NEW INVOICES FETCHED! ${response.data.data.fetchedCount} invoices saved to cloud storage. Previous data cleared.`)
+        
+        // Clear frontend state for fresh start
+        setReconciliationResults([])
+        setShowDetailedResults(false)
+        setStats(null)
+        setCurrentSessionId(null)
+        
         loadStats()
         setTimeout(checkUploadStatus, 1000)
       } else {
@@ -238,8 +252,16 @@ export default function Home() {
       return
     }
 
+    // Clear all previous data when uploading new files
+    setMessage('upload', '🗑️ Clearing previous data...', 'info')
+    await clearPreviousResults()
+    
     const formData = new FormData()
     formData.append('file', fileInput.files[0])
+    // Add flags to ensure backend clears previous data
+    formData.append('clearPrevious', 'true')
+    formData.append('sessionId', Date.now().toString())
+    formData.append('replaceData', 'true') // Complete data replacement
 
     setLoadingState('upload', true)
     try {
@@ -248,7 +270,14 @@ export default function Home() {
       })
 
       if (response.data.success) {
-        setMessage('upload', `✅ File uploaded and saved to cloud storage! ${response.data.data.processedRows} transactions processed.`)
+        setMessage('upload', `✅ NEW DATA UPLOADED! ${response.data.data.processedRows} transactions processed. Previous data cleared.`)
+        
+        // Clear frontend state for fresh start
+        setReconciliationResults([])
+        setShowDetailedResults(false)
+        setStats(null)
+        setCurrentSessionId(null)
+        
         loadStats()
         setTimeout(checkUploadStatus, 1000)
       } else {
