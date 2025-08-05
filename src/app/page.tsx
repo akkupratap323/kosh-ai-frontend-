@@ -65,6 +65,9 @@ export default function Home() {
     { role: 'assistant', content: 'Hello! I\'m your AI assistant for the Invoice Reconciliation System. How can I help you today?' }
   ])
   const [currentMessage, setCurrentMessage] = useState('')
+  const [reconciliationProgress, setReconciliationProgress] = useState(0)
+  const [reconciliationStage, setReconciliationStage] = useState('')
+  const [showReconciliationLoader, setShowReconciliationLoader] = useState(false)
 
   const API_BASE = process.env.NODE_ENV === 'production' 
     ? '/api' 
@@ -209,6 +212,33 @@ export default function Home() {
     }
 
     setLoadingState('reconcile', true)
+    setShowReconciliationLoader(true)
+    setReconciliationProgress(0)
+    setReconciliationStage('Initializing AI reconciliation...')
+
+    // Simulate progress stages
+    const progressStages = [
+      { progress: 10, stage: 'Validating data sources...' },
+      { progress: 20, stage: 'Loading invoices from database...' },
+      { progress: 35, stage: 'Loading bank statements...' },
+      { progress: 45, stage: 'Starting AI matching algorithm...' },
+      { progress: 60, stage: 'Processing transaction patterns...' },
+      { progress: 75, stage: 'Analyzing confidence scores...' },
+      { progress: 85, stage: 'Finalizing matches...' },
+      { progress: 95, stage: 'Generating detailed analytics...' },
+    ]
+
+    // Start progress simulation
+    let currentStageIndex = 0
+    const progressInterval = setInterval(() => {
+      if (currentStageIndex < progressStages.length) {
+        const stage = progressStages[currentStageIndex]
+        setReconciliationProgress(stage.progress)
+        setReconciliationStage(stage.stage)
+        currentStageIndex++
+      }
+    }, 800)
+
     try {
       const response = await axios.post(`${API_BASE}/reconcile`, {
         limit: parseInt(limit || '1000'),
@@ -216,6 +246,10 @@ export default function Home() {
         latestOnly: latestOnlyMode,
         uploadBatchOnly: uploadBatchOnly
       })
+
+      clearInterval(progressInterval)
+      setReconciliationProgress(100)
+      setReconciliationStage('Reconciliation completed successfully!')
 
       if (response.data.success) {
         const mode = uploadBatchOnly ? 'SINGLE UPLOAD' : (latestOnlyMode ? 'LATEST' : 'Recent')
@@ -240,14 +274,27 @@ export default function Home() {
               avg_confidence: avgConfidence
             })
           }
+          
+          // Hide loader and show results
+          setShowReconciliationLoader(false)
           setShowDetailedResults(true)
-          // Scroll to results section
-          document.getElementById('analytics-section')?.scrollIntoView({ behavior: 'smooth' })
-        }, 1000)
+          
+          // Smooth scroll to results section with proper timing
+          setTimeout(() => {
+            document.getElementById('analytics-section')?.scrollIntoView({ 
+              behavior: 'smooth',
+              block: 'start'
+            })
+          }, 100)
+        }, 1500)
       } else {
+        clearInterval(progressInterval)
+        setShowReconciliationLoader(false)
         setMessage('reconcile', `❌ Reconciliation failed: ${response.data.message}`, 'error')
       }
     } catch (error) {
+      clearInterval(progressInterval)
+      setShowReconciliationLoader(false)
       setMessage('reconcile', '❌ Error during reconciliation: ' + (error as Error).message, 'error')
     }
     setLoadingState('reconcile', false)
@@ -982,6 +1029,68 @@ export default function Home() {
             <StatusMessage messageKey="reconcile" />
           </CardContent>
         </Card>
+
+        {/* AI Reconciliation Loading Bar */}
+        {showReconciliationLoader && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center">
+            <Card className="w-full max-w-2xl mx-4 bg-white shadow-2xl border-2 border-primary/20">
+              <CardHeader className="text-center pb-4">
+                <CardTitle className="flex items-center justify-center gap-3 text-2xl">
+                  <Brain className="h-8 w-8 text-primary animate-pulse" />
+                  AI Reconciliation in Progress
+                </CardTitle>
+                <CardDescription className="text-base mt-2">
+                  Advanced AI algorithms are processing your data...
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Progress Bar */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">{reconciliationStage}</span>
+                    <span className="text-sm font-bold text-primary">{reconciliationProgress}%</span>
+                  </div>
+                  <div className="relative">
+                    <Progress value={reconciliationProgress} className="h-3" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse rounded-full"></div>
+                  </div>
+                </div>
+
+                {/* Stage Indicators */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                  <div className={`p-3 rounded-lg transition-all ${reconciliationProgress >= 10 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                    <FileText className="h-5 w-5 mx-auto mb-1" />
+                    <div className="text-xs font-medium">Data Load</div>
+                  </div>
+                  <div className={`p-3 rounded-lg transition-all ${reconciliationProgress >= 45 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                    <Brain className="h-5 w-5 mx-auto mb-1" />
+                    <div className="text-xs font-medium">AI Analysis</div>
+                  </div>
+                  <div className={`p-3 rounded-lg transition-all ${reconciliationProgress >= 75 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                    <Target className="h-5 w-5 mx-auto mb-1" />
+                    <div className="text-xs font-medium">Matching</div>
+                  </div>
+                  <div className={`p-3 rounded-lg transition-all ${reconciliationProgress >= 95 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                    <BarChart3 className="h-5 w-5 mx-auto mb-1" />
+                    <div className="text-xs font-medium">Analytics</div>
+                  </div>
+                </div>
+
+                {/* Fun Facts */}
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                    <Activity className="h-4 w-4" />
+                    Did you know?
+                  </h4>
+                  <p className="text-sm text-blue-700">
+                    Our AI analyzes multiple factors including amounts, dates, descriptions, and patterns to achieve 
+                    industry-leading accuracy in invoice reconciliation.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Export Section */}
         <Card>
