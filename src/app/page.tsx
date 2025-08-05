@@ -142,11 +142,13 @@ export default function Home() {
   const clearPreviousResults = async () => {
     try {
       console.log('Clearing previous reconciliation results...')
-      const response = await axios.delete(`${API_BASE}/reconciliation-results`)
+      // Add cache busting to ensure fresh delete request
+      const response = await axios.delete(`${API_BASE}/reconciliation-results?timestamp=${Date.now()}`)
       if (response.data.success) {
         console.log('Previous results cleared successfully')
         setReconciliationResults([])
         setStats(null)
+        setShowDetailedResults(false) // Hide results display
       }
     } catch (error) {
       console.log('Failed to clear previous results (might not be supported):', error)
@@ -156,7 +158,15 @@ export default function Home() {
 
   const loadReconciliationResults = async () => {
     try {
-      const response = await axios.get(`${API_BASE}/reconciliation-results?limit=1000`)
+      // Add cache busting and session filtering to get only latest results
+      const queryParams = new URLSearchParams({
+        limit: '1000',
+        timestamp: Date.now().toString(),
+        ...(currentSessionId && { sessionId: currentSessionId }), // Filter by current session if available
+        latest: 'true' // Request only latest reconciliation batch
+      })
+      
+      const response = await axios.get(`${API_BASE}/reconciliation-results?${queryParams}`)
       console.log('Reconciliation results response:', response.data)
       if (response.data.success && response.data.data) {
         // Transform backend data to match frontend interface
@@ -326,10 +336,9 @@ export default function Home() {
     setShowDetailedResults(false)
     setDisplayLimit(10) // Reset display limit for new reconciliation
     
-    // Clear previous results from backend if processing uploaded data only
-    if (uploadBatchOnly) {
-      await clearPreviousResults()
-    }
+    // ALWAYS clear previous results to prevent accumulation
+    console.log('Clearing previous reconciliation results before new processing...')
+    await clearPreviousResults()
 
     // Simulate progress stages
     const progressStages = [
@@ -363,8 +372,9 @@ export default function Home() {
         daysBack: recordsTimeframe,
         latestOnly: latestOnlyMode,
         uploadBatchOnly: uploadBatchOnly,
-        clearPrevious: uploadBatchOnly, // Clear previous results when processing uploaded data only
-        sessionId: sessionId // Unique session ID for this reconciliation
+        clearPrevious: true, // ALWAYS clear previous results to prevent accumulation
+        sessionId: sessionId, // Unique session ID for this reconciliation
+        forceNew: true // Force creation of new results, don't accumulate
       })
 
       clearInterval(progressInterval)
@@ -1440,6 +1450,10 @@ Ask me anything about the system - I have detailed knowledge of all components a
                 <Button
                   onClick={async () => {
                     setMessage('reconcile', '🔄 Refreshing data and results...', 'info')
+                    // Clear any cached/stale results first
+                    setReconciliationResults([])
+                    setShowDetailedResults(false)
+                    
                     // Force refresh upload status first
                     await checkUploadStatus(0)
                     await loadReconciliationResults()
