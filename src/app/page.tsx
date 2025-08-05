@@ -155,7 +155,7 @@ export default function Home() {
       })
 
       if (response.data.success) {
-        setMessage('fetch', `✅ Successfully fetched ${response.data.data.fetchedCount} invoices!`)
+        setMessage('fetch', `✅ Successfully fetched ${response.data.data.fetchedCount} invoices and saved to cloud storage!`)
         loadStats()
         setTimeout(checkUploadStatus, 1000)
       } else {
@@ -184,7 +184,7 @@ export default function Home() {
       })
 
       if (response.data.success) {
-        setMessage('upload', `✅ File processed successfully! ${response.data.data.processedRows} transactions processed.`)
+        setMessage('upload', `✅ File uploaded and saved to cloud storage! ${response.data.data.processedRows} transactions processed.`)
         loadStats()
         setTimeout(checkUploadStatus, 1000)
       } else {
@@ -943,6 +943,74 @@ export default function Home() {
           </Card>
         </div>
 
+        {/* Cloud Storage Status Panel */}
+        <Card className="mb-6 border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-cyan-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-blue-800">
+              <Settings className="h-5 w-5" />
+              ☁️ Cloud Data Storage Status
+            </CardTitle>
+            <CardDescription className="text-blue-600">
+              Real-time status of your data stored in our secure cloud infrastructure
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card className="p-4 bg-white/80">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-blue-600" />
+                      Invoice Data
+                    </h4>
+                    <p className="text-sm text-muted-foreground mt-1">Stored in BigQuery</p>
+                  </div>
+                  <div className="text-right">
+                    <div className={`text-lg font-bold ${uploadStatus?.hasInvoices ? 'text-green-600' : 'text-gray-400'}`}>
+                      {uploadStatus?.hasInvoices ? '✅' : '📤'}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {uploadStatus?.invoiceCount || 0} records
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-4 bg-white/80">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <Upload className="h-4 w-4 text-green-600" />
+                      Bank Statement Data
+                    </h4>
+                    <p className="text-sm text-muted-foreground mt-1">Stored in Cloud Storage</p>
+                  </div>
+                  <div className="text-right">
+                    <div className={`text-lg font-bold ${uploadStatus?.hasBankStatements ? 'text-green-600' : 'text-gray-400'}`}>
+                      {uploadStatus?.hasBankStatements ? '✅' : '📤'}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {uploadStatus?.bankCount || 0} records
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+            
+            {uploadStatus && (uploadStatus.hasInvoices || uploadStatus.hasBankStatements) && (
+              <div className="mt-4 p-3 bg-green-100 rounded-lg border border-green-200">
+                <div className="flex items-center gap-2 text-green-800">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="font-medium">Data Successfully Stored in Cloud</span>
+                </div>
+                <p className="text-sm text-green-700 mt-1">
+                  Your data is securely stored and ready for AI reconciliation processing.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* AI Reconciliation Panel */}
         <Card className="mb-12">
           <CardHeader>
@@ -950,7 +1018,7 @@ export default function Home() {
               <Brain className="h-5 w-5" />
               AI Reconciliation Engine
             </CardTitle>
-            <CardDescription>Advanced matching with detailed analytics</CardDescription>
+            <CardDescription>Advanced matching with detailed analytics using cloud-stored data</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
