@@ -69,6 +69,7 @@ export default function Home() {
   const [reconciliationProgress, setReconciliationProgress] = useState(0)
   const [reconciliationStage, setReconciliationStage] = useState('')
   const [showReconciliationLoader, setShowReconciliationLoader] = useState(false)
+  const [displayLimit, setDisplayLimit] = useState(10) // Number of results to display
 
   // Always use direct backend URL to avoid Next.js rewrite issues
   const API_BASE = 'https://kosh-ai-467615.el.r.appspot.com/api'
@@ -266,6 +267,7 @@ export default function Home() {
     // Clear any previous results
     setReconciliationResults([])
     setShowDetailedResults(false)
+    setDisplayLimit(10) // Reset display limit for new reconciliation
 
     // Simulate progress stages
     const progressStages = [
@@ -934,7 +936,7 @@ Ask me anything about the system - I have detailed knowledge of all components a
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {Array.isArray(reconciliationResults) && reconciliationResults.slice(0, 10).map((result, index) => (
+                  {Array.isArray(reconciliationResults) && reconciliationResults.slice(0, displayLimit).map((result, index) => (
                     result && result.id ? (
                     <Card key={result.id} className={`p-6 border-l-4 ${
                       result.match_confidence >= 0.95 ? 'border-l-green-500 bg-green-50/50' :
@@ -1042,11 +1044,38 @@ Ask me anything about the system - I have detailed knowledge of all components a
                     ) : null
                   ))}
                   
-                  {reconciliationResults.length > 10 && (
-                    <Card className="p-4 text-center">
-                      <p className="text-muted-foreground">
-                        ... and {reconciliationResults.length - 10} more detailed matches
-                      </p>
+                  {reconciliationResults.length > displayLimit && (
+                    <Card className="p-6 text-center bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-dashed border-blue-200">
+                      <div className="space-y-4">
+                        <p className="text-muted-foreground text-lg">
+                          📊 {reconciliationResults.length - displayLimit} more detailed matches available
+                        </p>
+                        <div className="flex gap-3 justify-center">
+                          <Button 
+                            onClick={() => setDisplayLimit(displayLimit + 10)}
+                            variant="outline"
+                            className="px-6 py-2"
+                          >
+                            📄 Load Next 10
+                          </Button>
+                          <Button 
+                            onClick={() => setDisplayLimit(reconciliationResults.length)}
+                            className="px-6 py-2"
+                          >
+                            📋 Show All ({reconciliationResults.length})
+                          </Button>
+                        </div>
+                        {displayLimit > 10 && (
+                          <Button 
+                            onClick={() => setDisplayLimit(10)}
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs"
+                          >
+                            ↑ Collapse to First 10
+                          </Button>
+                        )}
+                      </div>
                     </Card>
                   )}
                 </div>
