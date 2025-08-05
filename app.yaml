@@ -1,0 +1,23 @@
+runtime: nodejs20
+service: frontend
+
+env_variables:
+  NODE_ENV: production
+
+handlers:
+- url: /_next/static
+  static_dir: .next/static
+  expiration: 365d
+
+- url: /(.*\.(gif|png|jpg|ico|svg|css|js|woff|woff2|ttf|eot))$
+  static_files: \1
+  upload: (.*\.(gif|png|jpg|ico|svg|css|js|woff|woff2|ttf|eot))$
+  expiration: 365d
+
+- url: /.*
+  script: auto
+  secure: always
+
+automatic_scaling:
+  min_instances: 1
+  max_instances: 5

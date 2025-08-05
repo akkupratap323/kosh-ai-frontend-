@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-Display Demo - AI Reconciliation Results</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 20px; background: #f8f9fa; }
+        .demo-container { max-width: 800px; margin: 0 auto; }
+        .status { padding: 20px; margin: 20px 0; border-radius: 10px; }
+        .status-success { background: #d4edda; color: #155724; border: 2px solid #28a745; }
+        .btn { background: #007bff; color: white; border: none; padding: 15px 25px; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 10px; }
+        .btn:hover { background: #0056b3; }
+        .ai-insights { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; padding: 25px; margin: 20px 0; }
+        .ai-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; }
+        .ai-metric { text-align: center; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px; }
+        .ai-metric-number { font-size: 1.8em; font-weight: bold; margin-bottom: 5px; }
+        .loading { text-align: center; padding: 30px; background: linear-gradient(-45deg, #667eea, #764ba2); color: white; border-radius: 12px; }
+        .auto-load-banner { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px; border-radius: 12px; margin: 20px 0; text-align: center; }
+        .match-item { border: 2px solid #e9ecef; border-radius: 12px; padding: 20px; margin: 15px 0; background: white; }
+        .match-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .confidence-badge { padding: 6px 12px; border-radius: 20px; font-weight: bold; background: #d4edda; color: #155724; border: 2px solid #28a745; }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1>🤖 Auto-Display Reconciliation Results Demo</h1>
+        <p>This demonstrates the enhanced behavior when reconciliation completes with "Found 52 matches"</p>
+        
+        <button onclick="simulateReconciliation()" class="btn">🚀 Simulate "Start AI Reconciliation"</button>
+        
+        <div id="status"></div>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function simulateReconciliation() {
+            const statusElement = document.getElementById('status');
+            const resultsElement = document.getElementById('results');
+            
+            // Step 1: Show processing
+            statusElement.innerHTML = `
+                <div class="loading">
+                    <h4>🤖 AI Engine Processing...</h4>
+                    <p>Analyzing 100 records with advanced machine learning algorithms</p>
+                </div>
+            `;
+            resultsElement.innerHTML = '';
+            
+            // Step 2: After 3 seconds, show completion with 52 matches
+            setTimeout(() => {
+                statusElement.innerHTML = `
+                    <div class="ai-insights">
+                        <h4>🎉 AI Reconciliation Complete!</h4>
+                        <div class="ai-metrics">
+                            <div class="ai-metric">
+                                <div class="ai-metric-number">52</div>
+                                <div class="ai-metric-label">Matches Found</div>
+                            </div>
+                            <div class="ai-metric">
+                                <div class="ai-metric-number">94.2%</div>
+                                <div class="ai-metric-label">Avg Confidence</div>
+                            </div>
+                            <div class="ai-metric">
+                                <div class="ai-metric-number">2.3s</div>
+                                <div class="ai-metric-label">Processing Time</div>
+                            </div>
+                        </div>
+                        <p style="text-align: center; margin-top: 15px;">
+                            🚀 Auto-loading all 52 detailed matches below...
+                        </p>
+                    </div>
+                `;
+                
+                // Step 3: Auto-load detailed results
+                setTimeout(() => {
+                    autoDisplayResults();
+                }, 1000);
+            }, 3000);
+        }
+        
+        async function autoDisplayResults() {
+            const resultsElement = document.getElementById('results');
+            const statusElement = document.getElementById('status');
+            
+            // Show loading for detailed results
+            resultsElement.innerHTML = `
+                <div class="loading">
+                    <h4>🔍 Loading All 52 Detailed Matches...</h4>
+                    <p>Fetching complete reconciliation data from backend</p>
+                    <small>API: https://kosh-ai-467615.el.r.appspot.com/api/reconciliation-results</small>
+                </div>
+            `;
+            
+            // Simulate API call delay
+            setTimeout(() => {
+                resultsElement.innerHTML = `
+                    <div class="auto-load-banner">
+                        <h4>🎉 Auto-Loaded Complete Results!</h4>
+                        <p>All 52 matches automatically displayed with full details after reconciliation completion.</p>
+                    </div>
+                    
+                    <h3 style="color: #007bff;">🤖 Complete AI Reconciliation Analysis</h3>
+                    <p>Showing 52 AI-generated matches with complete data details, confidence scoring, and reasoning:</p>
+                    
+                    <div class="match-item">
+                        <div class="match-header">
+                            <div><strong>Match #1</strong> <span style="background: #e9ecef; padding: 4px 8px; border-radius: 6px; font-size: 12px;">REFERENCE_EXACT</span></div>
+                            <div class="confidence-badge">96.8% Confidence</div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff;">
+                                <h5>📄 Invoice Complete Details</h5>
+                                <p><strong>Invoice ID:</strong> INV-2024-1247</p>
+                                <p><strong>Amount:</strong> $2,847.50</p>
+                                <p><strong>Partner:</strong> Acme Corp</p>
+                                <p><strong>Reference:</strong> REF-ACC-001</p>
+                            </div>
+                            <div style="background: #f0f8f0; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
+                                <h5>🏦 Bank Transaction Complete Details</h5>
+                                <p><strong>Statement ID:</strong> TXN-45891</p>
+                                <p><strong>Amount:</strong> $2,847.50</p>
+                                <p><strong>Description:</strong> Payment Acme Corp REF-ACC-001</p>
+                                <p><strong>File:</strong> bank-statement-2024-01.csv</p>
+                            </div>
+                        </div>
+                        <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                            <h6>🧠 Complete AI Analysis:</h6>
+                            <p>AI detected perfect amount match ($2,847.50), exact reference number "REF-ACC-001" in bank description, customer name "Acme Corp" correlation, and transaction date within 2-day payment window.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="match-item">
+                        <div class="match-header">
+                            <div><strong>Match #2</strong> <span style="background: #e9ecef; padding: 4px 8px; border-radius: 6px; font-size: 12px;">PATTERN_BASED</span></div>
+                            <div class="confidence-badge">94.2% Confidence</div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff;">
+                                <h5>📄 Invoice Complete Details</h5>
+                                <p><strong>Invoice ID:</strong> INV-2024-1248</p>
+                                <p><strong>Amount:</strong> $1,250.00</p>
+                                <p><strong>Partner:</strong> Beta Industries</p>
+                                <p><strong>Reference:</strong> SO-2024-456</p>
+                            </div>
+                            <div style="background: #f0f8f0; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
+                                <h5>🏦 Bank Transaction Complete Details</h5>
+                                <p><strong>Statement ID:</strong> TXN-45892</p>
+                                <p><strong>Amount:</strong> $1,245.75</p>
+                                <p><strong>Description:</strong> Transfer Beta Industries Invoice Payment</p>
+                                <p><strong>File:</strong> bank-statement-2024-01.csv</p>
+                            </div>
+                        </div>
+                        <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                            <h6>🧠 Complete AI Analysis:</h6>
+                            <p>AI identified 99.7% amount similarity ($4.25 difference), customer name "Beta Industries" in description, 2-day payment window, and typical payment description patterns.</p>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; padding: 20px; background: #e7f3ff; border-radius: 12px; margin: 20px 0;">
+                        <p><strong>... and 50 more detailed matches ...</strong></p>
+                        <p>Each showing complete invoice data, bank transaction details, AI reasoning, confidence scoring, and metadata</p>
+                    </div>
+                    
+                    <div class="ai-insights">
+                        <h4>📊 Complete Reconciliation Summary</h4>
+                        <div class="ai-metrics">
+                            <div class="ai-metric">
+                                <div class="ai-metric-number">52</div>
+                                <div class="ai-metric-label">Total Matches</div>
+                            </div>
+                            <div class="ai-metric">
+                                <div class="ai-metric-number">47</div>
+                                <div class="ai-metric-label">High Confidence (≥85%)</div>
+                            </div>
+                            <div class="ai-metric">
+                                <div class="ai-metric-number">94.2%</div>
+                                <div class="ai-metric-label">Average Confidence</div>
+                            </div>
+                        </div>
+                        <p style="text-align: center; margin-top: 15px;">
+                            🎯 Complete AI reconciliation analysis showing all data fields, matching algorithms, confidence scoring, 
+                            and detailed reasoning for each match identified by the advanced machine learning engine.
+                        </p>
+                    </div>
+                `;
+                
+                // Update status to show completion
+                statusElement.innerHTML = `
+                    <div class="status status-success">
+                        ✅ Auto-displayed all 52 detailed matches below! Complete reconciliation analysis loaded automatically.
+                    </div>
+                `;
+                
+                // Scroll to results
+                setTimeout(() => {
+                    resultsElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 500);
+                
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

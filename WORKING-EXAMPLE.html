@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WORKING EXAMPLE - Auto Display Fix</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .btn { background: #007bff; color: white; padding: 15px 30px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 10px; }
+        .btn:hover { background: #0056b3; }
+        .status { padding: 20px; margin: 20px 0; border-radius: 10px; }
+        .status-success { background: #d4edda; color: #155724; border: 2px solid #28a745; }
+        .ai-insights { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; padding: 25px; margin: 20px 0; }
+        .ai-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 0; }
+        .ai-metric { text-align: center; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px; }
+        .ai-metric-number { font-size: 1.8em; font-weight: bold; margin-bottom: 5px; }
+        .match-results { background: white; border-radius: 12px; padding: 25px; margin: 20px 0; box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
+        .match-item { border: 2px solid #e9ecef; border-radius: 12px; padding: 20px; margin: 15px 0; background: white; }
+        .match-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .confidence-badge { padding: 6px 12px; border-radius: 20px; font-weight: bold; background: #d4edda; color: #155724; border: 2px solid #28a745; }
+        .match-details { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 15px 0; }
+        .invoice-side { background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff; }
+        .bank-side { background: #f0f8f0; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; }
+        .auto-banner { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px; border-radius: 12px; margin: 20px 0; text-align: center; }
+        .loading { text-align: center; padding: 20px; background: #007bff; color: white; border-radius: 8px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 WORKING EXAMPLE: Auto-Display Fix</h1>
+        
+        <div class="status status-success">
+            <strong>This shows EXACTLY what should happen after "Found 52 matches"</strong><br>
+            Click the button below to see the complete auto-display behavior.
+        </div>
+        
+        <button onclick="showWorkingExample()" class="btn">
+            🚀 Click Here - Shows What Should Happen After "Start AI Reconciliation"
+        </button>
+        
+        <div id="demo-status"></div>
+        <div id="demo-results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://kosh-ai-467615.el.r.appspot.com/api';
+        
+        async function showWorkingExample() {
+            const statusElement = document.getElementById('demo-status');
+            const resultsElement = document.getElementById('demo-results');
+            
+            // Step 1: Show processing (like what you see now)
+            statusElement.innerHTML = `
+                <div class="loading">
+                    <h4>🤖 AI Engine Processing...</h4>
+                    <p>This is what you see currently (processing animation)</p>
+                </div>
+            `;
+            resultsElement.innerHTML = '';
+            
+            // Step 2: After 2 seconds, show completion summary
+            setTimeout(() => {
+                statusElement.innerHTML = `
+                    <div class="ai-insights">
+                        <h4>🎉 AI Reconciliation Complete!</h4>
+                        <div class="ai-metrics">
+                            <div class="ai-metric">
+                                <div class="ai-metric-number">52</div>
+                                <div class="ai-metric-label">Matches Found</div>
+                            </div>
+                            <div class="ai-metric">
+                                <div class="ai-metric-number">94.2%</div>
+                                <div class="ai-metric-label">Avg Confidence</div>
+                            </div>
+                            <div class="ai-metric">
+                                <div class="ai-metric-number">3.2s</div>
+                                <div class="ai-metric-label">Processing Time</div>
+                            </div>
+                        </div>
+                        <p style="text-align: center; margin-top: 15px;">
+                            ⬇️ Loading all 52 detailed matches below automatically...
+                        </p>
+                    </div>
+                `;
+                
+                // Step 3: Immediately start loading detailed results
+                setTimeout(() => {
+                    loadDetailedResults();
+                }, 500);
+                
+            }, 2000);
+        }
+        
+        async function loadDetailedResults() {
+            const resultsElement = document.getElementById('demo-results');
+            
+            // Show loading for detailed results
+            resultsElement.innerHTML = `
+                <div class="loading">
+                    <h4>🔍 Loading All 52 Detailed Matches...</h4>
+                    <p>Fetching from: ${API_BASE}/reconciliation-results</p>
+                </div>
+            `;
+            
+            // Try to fetch real data from the backend
+            try {
+                const response = await fetch(`${API_BASE}/reconciliation-results?limit=10`);
+                const data = await response.json();
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    // Show the real data
+                    displayRealResults(data.data);
+                } else {
+                    // Show demo data if no real data
+                    displayDemoResults();
+                }
+            } catch (error) {
+                console.log('Backend not available, showing demo data');
+                displayDemoResults();
+            }
+        }
+        
+        function displayRealResults(realData) {
+            const resultsElement = document.getElementById('demo-results');
+            
+            let html = `
+                <div class="auto-banner">
+                    <h4>🎉 SUCCESS! Auto-Loaded REAL Results from Backend!</h4>
+                    <p>Found ${realData.length} actual matches from your backend API</p>
+                </div>
+                
+                <div class="match-results">
+                    <h3 style="color: #007bff;">🤖 REAL Backend Data - Complete AI Analysis</h3>
+                    <p>This is REAL data from: ${API_BASE}/reconciliation-results</p>
+            `;
+            
+            realData.forEach((match, index) => {
+                const confidence = (match.match_confidence * 100).toFixed(1);
+                
+                html += `
+                    <div class="match-item">
+                        <div class="match-header">
+                            <div><strong>REAL Match #${index + 1}</strong></div>
+                            <div class="confidence-badge">${confidence}% Confidence</div>
+                        </div>
+                        
+                        <div class="match-details">
+                            <div class="invoice-side">
+                                <h5>📄 Real Invoice Data</h5>
+                                <p><strong>ID:</strong> ${match.invoice_id || 'N/A'}</p>
+                                <p><strong>Number:</strong> ${match.invoice_number || 'N/A'}</p>
+                                <p><strong>Partner:</strong> ${match.partner_name || 'N/A'}</p>
+                                <p><strong>Amount:</strong> $${match.invoice_amount || 0}</p>
+                                <p><strong>Date:</strong> ${match.invoice_date?.value || 'N/A'}</p>
+                            </div>
+                            
+                            <div class="bank-side">
+                                <h5>🏦 Real Bank Data</h5>
+                                <p><strong>ID:</strong> ${match.bank_statement_id || 'N/A'}</p>
+                                <p><strong>Amount:</strong> $${match.bank_amount || 0}</p>
+                                <p><strong>Description:</strong> ${match.bank_description || 'N/A'}</p>
+                                <p><strong>Date:</strong> ${match.bank_date?.value || 'N/A'}</p>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                            <h6>🧠 Real AI Analysis:</h6>
+                            <p><strong>Match Type:</strong> ${match.match_type || 'N/A'}</p>
+                            <p><strong>Status:</strong> ${match.status || 'N/A'}</p>
+                            <p><strong>Reasons:</strong> ${match.match_reasons ? match.match_reasons.join(', ') : 'Pattern matching'}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                </div>
+                <div class="status status-success">
+                    <strong>✅ THIS IS WHAT YOU SHOULD SEE!</strong><br>
+                    After "Found 52 matches" - all this detailed data should appear automatically.
+                </div>
+            `;
+            
+            resultsElement.innerHTML = html;
+            
+            // Update main status
+            document.getElementById('demo-status').innerHTML = `
+                <div class="status status-success">
+                    ✅ SUCCESS! Auto-displayed all ${realData.length} real matches with complete details!
+                </div>
+            `;
+        }
+        
+        function displayDemoResults() {
+            const resultsElement = document.getElementById('demo-results');
+            
+            resultsElement.innerHTML = `
+                <div class="auto-banner">
+                    <h4>🎉 Demo: What You Should See After "Found 52 matches"</h4>
+                    <p>All detailed matches automatically displayed (backend not connected for demo)</p>
+                </div>
+                
+                <div class="match-results">
+                    <h3 style="color: #007bff;">🤖 Complete AI Analysis (Sample Data)</h3>
+                    
+                    <div class="match-item">
+                        <div class="match-header">
+                            <div><strong>Sample Match #1</strong></div>
+                            <div class="confidence-badge">96.8% Confidence</div>
+                        </div>
+                        
+                        <div class="match-details">
+                            <div class="invoice-side">
+                                <h5>📄 Invoice Complete Details</h5>
+                                <p><strong>ID:</strong> INV-2024-1247</p>
+                                <p><strong>Number:</strong> INV/001</p>
+                                <p><strong>Partner:</strong> Acme Corp</p>
+                                <p><strong>Amount:</strong> $2,847.50</p>
+                                <p><strong>Date:</strong> 2024-01-15</p>
+                            </div>
+                            
+                            <div class="bank-side">
+                                <h5>🏦 Bank Transaction Details</h5>
+                                <p><strong>ID:</strong> TXN-45891</p>
+                                <p><strong>Amount:</strong> $2,847.50</p>
+                                <p><strong>Description:</strong> Payment Acme Corp</p>
+                                <p><strong>Date:</strong> 2024-01-17</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; padding: 20px; background: #e7f3ff; border-radius: 12px;">
+                        <p><strong>... and 51 more detailed matches ...</strong></p>
+                        <p>Each showing complete data, AI reasoning, confidence scores</p>
+                    </div>
+                </div>
+                
+                <div class="status status-success">
+                    <strong>✅ THIS IS WHAT SHOULD HAPPEN!</strong><br>
+                    After "Found 52 matches" - all detailed data should appear automatically without clicking anything.
+                </div>
+            `;
+            
+            document.getElementById('demo-status').innerHTML = `
+                <div class="status status-success">
+                    ✅ Demo complete! This shows what you should see after reconciliation.
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
