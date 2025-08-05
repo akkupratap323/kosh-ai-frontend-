@@ -181,16 +181,29 @@ export default function Home() {
 
   const loadReconciliationResults = async () => {
     try {
-      // Add cache busting and session filtering to get only latest results
-      const queryParams = new URLSearchParams({
-        limit: '1000',
-        timestamp: Date.now().toString(),
-        ...(currentSessionId && { sessionId: currentSessionId }), // Filter by current session if available
-        latest: 'true' // Request only latest reconciliation batch
-      })
+      let queryParams: URLSearchParams;
+      
+      if (currentSessionId) {
+        // If we have a current session ID, get results ONLY for this session
+        queryParams = new URLSearchParams({
+          sessionId: currentSessionId,
+          limit: '1000',
+          timestamp: Date.now().toString()
+        });
+        console.log(`🎯 Loading results for CURRENT session: ${currentSessionId}`);
+      } else {
+        // If no session ID, get only the latest results (last 5 minutes)
+        queryParams = new URLSearchParams({
+          latest: 'true',
+          limit: '1000', 
+          timestamp: Date.now().toString()
+        });
+        console.log('🔥 Loading LATEST results only (last 5 minutes)');
+      }
       
       const response = await axios.get(`${API_BASE}/reconciliation-results?${queryParams}`)
       console.log('Reconciliation results response:', response.data)
+      
       if (response.data.success && response.data.data) {
         // Transform backend data to match frontend interface
         const transformedResults = response.data.data.map((item: any) => ({
@@ -1477,6 +1490,9 @@ Ask me anything about the system - I have detailed knowledge of all components a
                       const beforeCount = reconciliationResults.length
                       setMessage('reconcile', `🗑️ Clearing ${beforeCount} results with multiple methods...`, 'info')
                       
+                      // Clear session ID to prevent session-based filtering during clear check
+                      setCurrentSessionId('')
+                      
                       await clearPreviousResults()
                       
                       // Force refresh to check if actually cleared
@@ -1508,12 +1524,16 @@ Ask me anything about the system - I have detailed knowledge of all components a
                     setReconciliationResults([])
                     setShowDetailedResults(false)
                     
+                    // Keep session ID if available, or use latest mode
+                    console.log(`🔄 Refreshing with session: ${currentSessionId || 'latest mode'}`)
+                    
                     // Force refresh upload status first
                     await checkUploadStatus(0)
-                    await loadReconciliationResults()
+                    const freshResults = await loadReconciliationResults()
                     await loadStats()
-                    if (reconciliationResults.length > 0) {
-                      setMessage('reconcile', `✅ Refreshed! Found ${reconciliationResults.length} results.`, 'success')
+                    
+                    if (freshResults.length > 0) {
+                      setMessage('reconcile', `✅ Refreshed! Found ${freshResults.length} results for ${currentSessionId ? `session ${currentSessionId}` : 'latest reconciliation'}.`, 'success')
                       setShowDetailedResults(true)
                     } else {
                       setMessage('reconcile', '⚠️ No results found after refresh. Try running reconciliation again.', 'error')
