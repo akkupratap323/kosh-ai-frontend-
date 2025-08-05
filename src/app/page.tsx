@@ -178,13 +178,16 @@ export default function Home() {
         
         setReconciliationResults(transformedResults)
         console.log('Loaded and transformed reconciliation results:', transformedResults.length)
+        return transformedResults
       } else {
         console.log('No reconciliation results found in API response')
         setReconciliationResults([])
+        return []
       }
     } catch (error) {
       console.log('Failed to load reconciliation results:', error)
       setReconciliationResults([])
+      return []
     }
   }
 
@@ -364,14 +367,35 @@ export default function Home() {
         setMessage('reconcile', `✅ AI Reconciliation Complete - ${mode} Records! Found ${response.data.data.reconciliationCount} matches.`)
         loadStats()
         
-        // Auto-load detailed results after reconciliation
+        // Auto-load detailed results after reconciliation with retry logic
         setTimeout(async () => {
-          await loadReconciliationResults()
-          // Only show results if we actually have data from the API
-          if (reconciliationResults.length === 0) {
-            setMessage('reconcile', '⚠️ No reconciliation results found. This could mean:\n• No matching transactions were found\n• Data needs to be uploaded first\n• Backend reconciliation is still processing', 'error')
+          console.log('Loading reconciliation results after successful reconciliation...')
+          
+          // Try multiple times to load results with increasing delays
+          let attempts = 0
+          let maxAttempts = 5
+          let results = []
+          
+          while (attempts < maxAttempts && results.length === 0) {
+            attempts++
+            console.log(`Attempt ${attempts} to load reconciliation results...`)
+            
+            results = await loadReconciliationResults()
+            
+            if (results.length === 0) {
+              console.log(`No results found on attempt ${attempts}, waiting ${attempts * 1000}ms...`)
+              await new Promise(resolve => setTimeout(resolve, attempts * 1000))
+            }
+          }
+          
+          // Check final results
+          if (results.length === 0) {
+            console.error('No reconciliation results found after all attempts')
+            setMessage('reconcile', '⚠️ No reconciliation results loaded. This could mean:\n• Backend processing delay - try "🔄 Refresh Results" button\n• Data mismatch between uploaded files\n• Database synchronization issue', 'error')
             setShowDetailedResults(false)
           } else {
+            console.log(`Successfully loaded ${results.length} reconciliation results`)
+            setMessage('reconcile', `✅ Loaded ${results.length} reconciliation results successfully!`, 'success')
             setShowDetailedResults(true)
           }
           
@@ -379,13 +403,15 @@ export default function Home() {
           setShowReconciliationLoader(false)
           
           // Smooth scroll to results section with proper timing
-          setTimeout(() => {
-            document.getElementById('analytics-section')?.scrollIntoView({ 
-              behavior: 'smooth',
-              block: 'start'
-            })
-          }, 100)
-        }, 1500)
+          if (results.length > 0) {
+            setTimeout(() => {
+              document.getElementById('analytics-section')?.scrollIntoView({ 
+                behavior: 'smooth',
+                block: 'start'
+              })
+            }, 500)
+          }
+        }, 2000) // Increased initial delay
       } else {
         clearInterval(progressInterval)
         setShowReconciliationLoader(false)
@@ -1387,19 +1413,39 @@ Ask me anything about the system - I have detailed knowledge of all components a
                 )}
               </Button>
               
-              {reconciliationResults.length > 0 && (
+              <div className="flex gap-2">
+                {reconciliationResults.length > 0 && (
+                  <Button
+                    onClick={async () => {
+                      await clearPreviousResults()
+                      setMessage('reconcile', '🗑️ Previous reconciliation results cleared successfully!', 'info')
+                    }}
+                    variant="outline"
+                    className="flex-1"
+                    disabled={loading.reconcile}
+                  >
+                    🗑️ Clear Results
+                  </Button>
+                )}
+                
                 <Button
                   onClick={async () => {
-                    await clearPreviousResults()
-                    setMessage('reconcile', '🗑️ Previous reconciliation results cleared successfully!', 'info')
+                    setMessage('reconcile', '🔄 Refreshing reconciliation results...', 'info')
+                    await loadReconciliationResults()
+                    if (reconciliationResults.length > 0) {
+                      setMessage('reconcile', `✅ Refreshed! Found ${reconciliationResults.length} results.`, 'success')
+                      setShowDetailedResults(true)
+                    } else {
+                      setMessage('reconcile', '⚠️ No results found after refresh. Try running reconciliation again.', 'error')
+                    }
                   }}
                   variant="outline"
-                  className="w-full"
+                  className="flex-1"
                   disabled={loading.reconcile}
                 >
-                  🗑️ Clear Previous Results
+                  🔄 Refresh Results
                 </Button>
-              )}
+              </div>
             </div>
             <StatusMessage messageKey="reconcile" />
           </CardContent>
